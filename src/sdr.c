@@ -556,6 +556,7 @@ static int rtlsdr_read_loop(sdr_dev_t *dev, sdr_event_cb_t cb, void *ctx, uint32
 #endif
             dev->running = 0;
         }
+    // if (cfg->verbosity > 1)
         fprintf(stderr, "rtlsdr_read_loop: rtlsdr_read_async done\n");
 
     return r;
@@ -1643,9 +1644,11 @@ int sdr_stop_sync(sdr_dev_t *dev)
 static THREAD_RETURN THREAD_CALL acquire_thread(void *arg)
 {
     sdr_dev_t *dev = arg;
+    // if (cfg->verbosity > 1)
     fprintf(stderr, "acquire_thread enter...\n");
 
     int r = sdr_start_sync(dev, dev->async_cb, dev->async_ctx, dev->buf_num, dev->buf_len);
+    // if (cfg->verbosity > 1)
     fprintf(stderr, "acquire_thread async stop...\n");
 
     if (r < 0) {
@@ -1657,6 +1660,7 @@ static THREAD_RETURN THREAD_CALL acquire_thread(void *arg)
 //    };
 //    dev->async_cb(&ev, dev->async_ctx);
 
+    // if (cfg->verbosity > 1)
     fprintf(stderr, "acquire_thread done...\n");
     return (void *)(intptr_t)r;
 }
@@ -1698,20 +1702,28 @@ int sdr_stop(sdr_dev_t *dev)
         return -1;
     }
 
+    //if (cfg->verbosity > 1)
         fprintf(stderr, "%s: EXITING...\n", __func__);
-        pthread_mutex_lock(&dev->lock);
-        dev->exit_acquire = 1; // for rtl_tcp and SoapySDR
-        sdr_stop_sync(dev); // for rtlsdr
+    pthread_mutex_lock(&dev->lock);
+    if (dev->exit_acquire) {
         pthread_mutex_unlock(&dev->lock);
+        fprintf(stderr, "%s: Already exiting.\n", __func__);
+        return 0;
+    }
+    dev->exit_acquire = 1; // for rtl_tcp and SoapySDR
+    sdr_stop_sync(dev); // for rtlsdr
+    pthread_mutex_unlock(&dev->lock);
 
+    //if (cfg->verbosity > 1)
         fprintf(stderr, "%s: JOINING...\n", __func__);
-        int r = pthread_join(dev->thread, NULL);
-        if (r) {
-            fprintf(stderr, "%s: error in pthread_join, rc: %d\n", __func__, r);
-        }
+    int r = pthread_join(dev->thread, NULL);
+    if (r) {
+        fprintf(stderr, "%s: error in pthread_join, rc: %d\n", __func__, r);
+    }
 
+    //if (cfg->verbosity > 1)
         fprintf(stderr, "%s: EXITED.\n", __func__);
-        return r;
+    return r;
 }
 #else
 int sdr_start(sdr_dev_t *dev, sdr_event_cb_t cb, void *ctx, uint32_t buf_num, uint32_t buf_len)
